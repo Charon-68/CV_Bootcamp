@@ -76,18 +76,52 @@ The system is rigorously validated before execution. Every node connection is ch
 
 ---
 
-## 🔁 The Pipeline
+## 🔁 Asynchronous Event-Driven Pipeline
 
-A single pass over a camera frame involves fast local perception and asynchronous deliberation.
+NexusGuard features a production-grade asynchronous, event-driven execution runtime built using Python's `asyncio` framework. Component stages communicate purely through bounded, telemetry-monitored queues:
 
-| Stage | Node | Responsibility |
-|:-----:|-------|-----------|
-| **Ingest** | `CaptureNode` | Ring buffers for frame polling, monotonic indexing, async capture from RTSP/USB. |
-| **Process** | `CleanNode` | Geometry normalization, color space correction for downstream inference. |
-| **Analyze** | `DetectNode` | Pluggable interface for object detection (e.g., YOLO) and tracking abstractions (ByteTrack). |
-| **Verify** | `ValidateNode` | Drops low-confidence/malformed bounding boxes, reporting telemetry on dropped items. |
-| **Synthesize** | `Adjudicator` | Asynchronous reasoning via LLM integration; synthesizes detections into a risk-scored `Incident`. |
-| **Broadcast** | `Router` | Emits the `Incident` to a SQLite database, structured logs, and over WebSockets to dashboards. |
+```
+                  ┌───────────────────────┐
+                  │    Camera Manager     │
+                  └───────────┬───────────┘
+                              │ Ingest (Multi-Camera)
+                              ▼
+                  ┌───────────────────────┐
+                  │      Frame Queue      │
+                  └───────────┬───────────┘
+                              │ FrameContext
+                              ▼
+                  ┌───────────────────────┐
+                  │   Detection Workers   │  (Worker Pool)
+                  └───────────┬───────────┘
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │   Tracking Workers    │  (Worker Pool)
+                  └───────────┬───────────┘
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │   Reasoning Workers   │  (Worker Pool)
+                  └───────────┬───────────┘
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │    Storage Workers    │  (Worker Pool)
+                  └───────────┬───────────┘
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │  Websocket/Dashboard  │
+                  └───────────────────────┘
+```
+
+### Key Architectural Pillars
+
+- **Asynchronous Execution & Worker Pools**: Each pipeline stage is decoupled into a configurable `WorkerPool` (e.g. `DetectorPool`, `TrackingPool`). Workers execute concurrently, pulling payloads off their incoming queue, processing them, and placing results into the downstream queue. This prevents any slow stage (like Reasoning) from blocking frame ingest.
+- **Intelligent Backpressure & Bounded Memory**: The system features bounded queues implementing strict drop policies (`oldest`, `newest`, `block`). If downstream processors cannot keep up with camera FPS, older/newest frames are automatically dropped to prevent unlimited RAM usage.
+- **Multi-Camera Scalability**: The `CameraManager` manages multiple webcam, RTSP, video, or mock streams independently. Registration is fully dynamic, and connections auto-recover upon failures.
+- **Performance Profiling**: Active telemetry measures processed FPS, active tracks, queue wait times, and end-to-end latency metrics (p95 percentiles) per frame using a unified `FrameContext`.
 
 ---
 

@@ -12,9 +12,11 @@ nodes:
   - id: cam
     node: capture        # S0 - Capture
     config:
+      type: mock
       source: "stub://camera"
       width: 640
       height: 480
+      fps: 30
 
   - id: pre
     node: clean          # S1 - Clean / normalize
@@ -25,12 +27,18 @@ nodes:
   - id: det
     node: detect         # S2 - Detect objects
     config:
+      type: mock
       min_confidence: 0.25
+      device: auto
 
   - id: val
     node: validate       # S3 - Validate detections
     config:
       min_confidence: 0.25
+      tracker:
+        type: bytetrack
+        max_age: 30
+        min_hits: 3
 
 edges:
   - src: cam.frame
@@ -43,3 +51,16 @@ edges:
 # The graph terminates at `val.detections` (VerifiedObjects), which the
 # L5 Adjudicator consumes to produce a risk-scored Incident.
 output: val.detections
+
+# Asynchronous execution engine runtime parameters
+runtime:
+  workers:
+    detector: 2
+    tracker: 2
+    reasoner: 1
+    storage: 1
+  queue:
+    max_size: 200
+    drop_policy: oldest
+  camera:
+    max_fps: 30
