@@ -1,50 +1,51 @@
-"""L1 — Node catalog.
-
-Nodes register themselves by name so graphs can be built by reference
-(e.g. from a declarative spec) without importing concrete classes directly.
-"""
+"""L1 — Node catalog/registry."""
 from __future__ import annotations
 
-from typing import Callable, TypeVar
-
+from typing import Callable, TypeVar, Dict, List, Type
 from runtime.nodes.node import Node
 
 _REGISTRY: dict[str, type[Node]] = {}
-
 B = TypeVar("B", bound=type[Node])
 
 
-def register(name: str | None = None) -> Callable[[B], B]:
-    """Class decorator that registers a Node subclass under `name`.
+class NodeRegistry:
+    """Registry to manage and instantiate workflow Node classes."""
 
-    If `name` is omitted, the node's `name` attribute is used.
-    """
+    @classmethod
+    def register(cls, name: str | None = None) -> Callable[[B], B]:
+        """Class decorator that registers a Node subclass under `name`."""
+        def _decorator(node_cls: B) -> B:
+            key = name or getattr(node_cls, "name", None)
+            if not key:
+                raise ValueError(f"{node_cls.__name__}: node must declare a name")
+            if key in _REGISTRY:
+                # Allow re-registration for dynamic reloading / plugin replacement
+                pass
+            _REGISTRY[key] = node_cls
+            return node_cls
+        return _decorator
 
-    def _decorator(cls: B) -> B:
-        key = name or getattr(cls, "name", None)
-        if not key:
-            raise ValueError(f"{cls.__name__}: node must declare a name")
-        if key in _REGISTRY:
-            raise ValueError(f"duplicate node name: {key!r}")
-        _REGISTRY[key] = cls
-        return cls
+    @classmethod
+    def get(cls, name: str) -> type[Node]:
+        """Return the registered Node class for `name`."""
+        try:
+            return _REGISTRY[name]
+        except KeyError as exc:
+            raise KeyError(f"unknown node: {name!r}") from exc
 
-    return _decorator
+    @classmethod
+    def create(cls, name: str, **config: object) -> Node:
+        """Instantiate a registered node by name with the given config."""
+        return cls.get(name)(**config)
 
-
-def get(name: str) -> type[Node]:
-    """Return the registered Node class for `name`."""
-    try:
-        return _REGISTRY[name]
-    except KeyError as exc:
-        raise KeyError(f"unknown node: {name!r}") from exc
-
-
-def create(name: str, **config: object) -> Node:
-    """Instantiate a registered node by name with the given config."""
-    return get(name)(**config)
+    @classmethod
+    def available(cls) -> list[str]:
+        """Return the sorted list of registered node names."""
+        return sorted(_REGISTRY)
 
 
-def available() -> list[str]:
-    """Return the sorted list of registered node names."""
-    return sorted(_REGISTRY)
+# Expose decorator and helper functions for backward compatibility
+register = NodeRegistry.register
+get = NodeRegistry.get
+create = NodeRegistry.create
+available = NodeRegistry.available

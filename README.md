@@ -167,6 +167,41 @@ open http://localhost:5173
 
 ---
 
+## 🧩 Pluggable CV Workflow Framework
+
+NexusGuard operates as a dynamic, extensible Computer Vision workflow engine. Users can write custom Python nodes and hook them directly into the DAG using YAML configuration declarations.
+
+### Node Lifecycle
+
+Each component in the graph inherits from `BaseNode` and exposes standard lifecycle methods:
+1. `initialize()`: Loaded on startup (e.g. download weights or allocate memory).
+2. `execute(inputs, context)`: Processes incoming data streams within an `ExecutionContext`.
+3. `shutdown()`: Released on exit.
+
+### Dynamic Plugins
+
+Drop custom python files in the `plugins/` directory (under subfolders like `detectors/`, `trackers/`, `reasoners/`, `alerts/`, `storage/`, `analytics/`). The framework discovers and validates them at runtime using the `PluginRegistry` without restarting services.
+
+### Framework CLI
+
+The CLI tool allows checking, listing, and running workflows:
+
+```bash
+# List all registered plugins/extensions
+python cli.py list-plugins
+
+# List configured workflows
+python cli.py list-workflows
+
+# Validate a workflow YAML file for structural errors, cycles, or isolated nodes
+python cli.py validate-workflow config/example_plugin_workflow.yaml
+
+# Run a single-pass execution of a workflow
+python cli.py run-workflow config/example_plugin_workflow.yaml
+```
+
+---
+
 ## 📂 Repository Layout
 
 ```text

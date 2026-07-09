@@ -1,6 +1,6 @@
 """L1 — Node abstraction.
 
-A Node is a pure, declared transform with a name, typed input schema,
+A BaseNode is a pure, declared transform with a name, typed input schema,
 typed output schema, and config. Nodes are the atomic units of the NexusGuard
 graph and self-register into the node catalog.
 """
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Dict, Tuple
 
 
 @dataclass(frozen=True)
@@ -28,25 +28,49 @@ class NodeResult:
     meta: dict[str, Any] = field(default_factory=dict)
 
 
-class Node(ABC):
-    """Base class for every NexusGuard node.
-
-    Subclasses declare their name, input ports, and output ports, and
-    implement `run`. The graph engine uses the declared ports to validate
-    edges before execution.
-    """
+class BaseNode(ABC):
+    """Base class for all NexusGuard workflow nodes."""
 
     name: str = "node"
-    inputs: tuple[PortSpec, ...] = ()
-    outputs: tuple[PortSpec, ...] = ()
+    inputs: Tuple[PortSpec, ...] = ()
+    outputs: Tuple[PortSpec, ...] = ()
 
     def __init__(self, config: dict[str, Any] | None = None, **kwargs: Any) -> None:
         self.config = config if config is not None else kwargs
 
+    def initialize(self) -> None:
+        """Initialize resources, load weight files, etc."""
+        pass
+
     @abstractmethod
     def run(self, inputs: dict[str, Any]) -> NodeResult:
-        """Execute the node on validated inputs and return outputs."""
+        """Run the legacy graph execution logic. Subclasses implement this."""
         raise NotImplementedError
+
+    def execute(self, inputs: dict[str, Any], context: Any = None) -> NodeResult:
+        """Execute the node on validated inputs under an ExecutionContext."""
+        self.validate_inputs(inputs)
+        return self.run(inputs)
+
+    def shutdown(self) -> None:
+        """Shutdown node and release any allocated system resources."""
+        pass
+
+    def metadata(self) -> dict[str, Any]:
+        """Return metadata about the node."""
+        return {
+            "name": self.name,
+            "inputs": [p.name for p in self.inputs],
+            "outputs": [p.name for p in self.outputs],
+        }
+
+    def validate(self) -> Tuple[bool, list[str]]:
+        """Validate node configuration parameters."""
+        return True, []
+
+    def health(self) -> str:
+        """Return the current node health state ('Healthy', 'Warning', 'Failed')."""
+        return "Healthy"
 
     def validate_inputs(self, inputs: dict[str, Any]) -> None:
         """Check that required input ports are present and typed correctly."""
@@ -60,3 +84,7 @@ class Node(ABC):
 
     def __repr__(self) -> str:
         return f"<Node {self.name}>"
+
+
+# Alias Node to BaseNode to guarantee 100% backward compatibility with all existing nodes and tests
+Node = BaseNode

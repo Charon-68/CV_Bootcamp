@@ -1,0 +1,62 @@
+# Example plugin workflow demonstrating pluggable extension nodes
+name: custom_edge_analytics_workflow
+version: 1
+
+nodes:
+  - id: cam
+    type: capture
+    config:
+      type: mock
+      source: "stub://camera"
+
+  - id: pre
+    type: clean
+    config:
+      size: 640
+
+  - id: edge_detector
+    type: edge_detector
+    config:
+      threshold1: 100
+      threshold2: 200
+
+  - id: val
+    type: validate
+    config:
+      min_confidence: 0.20
+
+  - id: reasoner
+    type: mock_reasoner
+    config:
+      mode: conservative
+
+  - id: alert
+    type: webhook_alert
+    config:
+      url: "http://localhost:9000/alert"
+
+  - id: log
+    type: console_logger
+
+  - id: csv_log
+    type: csv_storage
+    config:
+      filepath: "custom_alerts.csv"
+
+edges:
+  - src: cam.frame
+    dst: pre.frame
+  - src: pre.frame
+    dst: edge_detector.frame
+  - src: edge_detector.detections
+    dst: val.detections
+  - src: val.detections
+    dst: reasoner.detections
+  - src: reasoner.incident
+    dst: alert.incident
+  - src: reasoner.incident
+    dst: log.incident
+  - src: reasoner.incident
+    dst: csv_log.incident
+
+output: reasoner.incident
