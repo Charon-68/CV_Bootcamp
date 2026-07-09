@@ -41,6 +41,10 @@ class BaseWorkerPool(ABC):
         self.error_counts = 0
         self.processed_count = 0
         self.total_processing_time = 0.0
+        
+        # Bounded history for percentile calculations
+        from collections import deque
+        self.latency_history = deque(maxlen=1000)
 
         # Worker status list
         self.worker_states: Dict[int, str] = {}  # worker_idx -> 'Healthy', 'Failed', 'Idle'
@@ -109,8 +113,11 @@ class BaseWorkerPool(ABC):
                 processed_context = await self._process(context, worker_idx)
                 
                 context.record_stage(self.stage_name, start_time)
+                
+                latency = time.time() - start_time
                 self.processed_count += 1
-                self.total_processing_time += (time.time() - start_time)
+                self.total_processing_time += latency
+                self.latency_history.append(latency)
 
                 self.worker_states[worker_idx] = "Healthy"
 
@@ -148,9 +155,21 @@ class BaseWorkerPool(ABC):
         idle_count = sum(1 for state in self.worker_states.values() if state in ("Healthy", "Idle"))
         active_count = len(self.worker_states) - idle_count
         
+        # Calculate percentiles
+        latencies = sorted(self.latency_history)
+        n = len(latencies)
+        p50 = latencies[int(n * 0.5)] if n > 0 else 0.0
+        p90 = latencies[int(n * 0.9)] if n > 0 else 0.0
+        p95 = latencies[int(n * 0.95)] if n > 0 else 0.0
+        p99 = latencies[int(n * 0.99)] if n > 0 else 0.0
+        
         return {
             "processed_count": self.processed_count,
             "average_processing_time_ms": avg_processing_time * 1000,
+            "p50_ms": p50 * 1000,
+            "p90_ms": p90 * 1000,
+            "p95_ms": p95 * 1000,
+            "p99_ms": p99 * 1000,
             "error_count": self.error_counts,
             "restart_count": self.restart_counts,
             "active_workers": active_count,

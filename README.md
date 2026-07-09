@@ -202,6 +202,38 @@ python cli.py run-workflow config/example_plugin_workflow.yaml
 
 ---
 
+## 📈 Performance & Benchmarking Framework
+
+NexusGuard is built as a measurable, benchmarkable, production-grade ML inference framework. It includes a comprehensive benchmarking suite to track latency, throughput (FPS), resource utilization (CPU, RAM), and identify system bottlenecks.
+
+### Benchmark CLI
+
+Run reproducible performance tests directly from the CLI:
+
+```bash
+# Benchmark all components and pipelines
+python cli.py benchmark all
+
+# Benchmark specific components (detector, tracker, reasoner, pipeline, stress)
+python cli.py benchmark detector
+python cli.py benchmark pipeline
+python cli.py benchmark stress
+```
+
+### Performance Reports & Optimization Advisor
+
+After a benchmark run, the framework generates a Markdown report (e.g., `benchmark_report.md`) containing:
+- **Summary Results**: FPS, Average/P95 Latency, Peak Memory, CPU utilization.
+- **Percentile Latencies**: P50, P90, P95, and P99 metrics for precise latency profiling.
+- **Bottleneck Detection**: Automatic identification of the slowest nodes and backpressuring queues.
+- **Optimization Suggestions**: Automated advice on scaling workers, tweaking batch sizes, or adjusting queue drop policies based on performance data.
+
+### Continuous Benchmarking
+
+NexusGuard includes GitHub Actions workflows (`.github/workflows/benchmark.yml`) that automatically run the benchmarking suite on every push and PR to monitor for performance regressions over time.
+
+---
+
 ## 📂 Repository Layout
 
 ```text

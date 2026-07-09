@@ -82,6 +82,10 @@ def main():
     run_parser = subparsers.add_parser("run-workflow", help="Execute single-pass graph workflow.")
     run_parser.add_argument("filepath", type=str, help="Path to the workflow YAML file.")
 
+    bench_parser = subparsers.add_parser("benchmark", help="Run performance benchmarks.")
+    bench_parser.add_argument("target", choices=["detector", "tracker", "reasoner", "pipeline", "stress", "all"], help="Benchmark target")
+    bench_parser.add_argument("--report", type=str, default="benchmark_report.md", help="Output report file")
+
     args = parser.parse_args()
 
     if args.command == "list-plugins":
@@ -92,6 +96,32 @@ def main():
         validate_workflow(args.filepath)
     elif args.command == "run-workflow":
         run_workflow(args.filepath)
+    elif args.command == "benchmark":
+        from benchmarks.core.runner import BenchmarkRunner, BenchmarkSuite
+        from benchmarks.suites.component_bench import DetectorBenchmark, TrackerBenchmark, ReasonerBenchmark
+        from benchmarks.suites.pipeline_bench import PipelineBenchmark
+        from benchmarks.suites.stress_bench import StressBenchmark
+        from benchmarks.reporting.report import ReportGenerator
+        
+        suite = BenchmarkSuite(name=f"NexusGuard {args.target.capitalize()} Benchmark Suite")
+        
+        if args.target in ["detector", "all"]:
+            suite.add_case(DetectorBenchmark(detector_type="mock", frame_count=500))
+        if args.target in ["tracker", "all"]:
+            suite.add_case(TrackerBenchmark(tracker_type="mock", frame_count=1000))
+        if args.target in ["reasoner", "all"]:
+            suite.add_case(ReasonerBenchmark(frame_count=200))
+        if args.target in ["pipeline", "all"]:
+            suite.add_case(PipelineBenchmark(duration_seconds=10))
+        if args.target in ["stress", "all"]:
+            suite.add_case(StressBenchmark(num_cameras=10, duration_seconds=15))
+            
+        runner = BenchmarkRunner()
+        report = runner.run_suite(suite)
+        
+        ReportGenerator.generate_markdown(report, args.report)
+        print(f"\n✅ Benchmark completed. Report generated at: {args.report}")
+
     else:
         parser.print_help()
 

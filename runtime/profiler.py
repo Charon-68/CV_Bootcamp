@@ -51,6 +51,24 @@ class PerformanceProfiler:
             round((m["queue_length"] / q.max_size) * 100, 1) if q.max_size > 0 else 0.0
             for q, m in zip(self.queues, queue_metrics)
         ]
+        
+        bottlenecks = []
+        if overall_fps < 10.0:
+            bottlenecks.append("Low overall throughput (FPS < 10)")
+        
+        # Find slowest node by avg processing time
+        avg_times = {
+            "detector": det_stats["average_processing_time_ms"],
+            "tracker": track_stats["average_processing_time_ms"],
+            "reasoner": reason_stats["average_processing_time_ms"]
+        }
+        slowest_node = max(avg_times, key=avg_times.get)
+        if avg_times[slowest_node] > 50: # >50ms is slow
+            bottlenecks.append(f"Slowest stage is {slowest_node} at {avg_times[slowest_node]:.1f}ms per frame")
+            
+        for i, util in enumerate(queue_utilization):
+            if util > 90.0:
+                bottlenecks.append(f"Queue {i} is backpressuring (>{util}% full)")
 
         return {
             "elapsed_seconds": elapsed,
@@ -62,9 +80,25 @@ class PerformanceProfiler:
                 "overall": overall_fps,
             },
             "latencies_ms": {
-                "detector_avg": det_stats["average_processing_time_ms"],
-                "tracker_avg": track_stats["average_processing_time_ms"],
-                "reasoner_avg": reason_stats["average_processing_time_ms"],
+                "detector": {
+                    "avg": det_stats["average_processing_time_ms"],
+                    "p50": det_stats.get("p50_ms", 0.0),
+                    "p95": det_stats.get("p95_ms", 0.0),
+                    "p99": det_stats.get("p99_ms", 0.0),
+                },
+                "tracker": {
+                    "avg": track_stats["average_processing_time_ms"],
+                    "p50": track_stats.get("p50_ms", 0.0),
+                    "p95": track_stats.get("p95_ms", 0.0),
+                    "p99": track_stats.get("p99_ms", 0.0),
+                },
+                "reasoner": {
+                    "avg": reason_stats["average_processing_time_ms"],
+                    "p50": reason_stats.get("p50_ms", 0.0),
+                    "p95": reason_stats.get("p95_ms", 0.0),
+                    "p99": reason_stats.get("p99_ms", 0.0),
+                },
             },
             "queue_utilization_percent": queue_utilization,
+            "bottlenecks": bottlenecks
         }
