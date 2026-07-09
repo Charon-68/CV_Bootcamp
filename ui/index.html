@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexusGuard Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* Add specific styles for the timeline and metrics */
+    .timeline { max-height: 400px; overflow-y: auto; background: #1a1a1a; padding: 10px; border-radius: 8px; }
+    .event { padding: 8px; border-bottom: 1px solid #333; font-size: 14px; }
+    .event:last-child { border-bottom: none; }
+    .high-risk { color: #ff4444; font-weight: bold; }
+    .medium-risk { color: #ffaa00; }
+    .low-risk { color: #00cc66; }
+    .metrics { display: flex; gap: 20px; background: #222; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    .metric { flex: 1; text-align: center; }
+    .metric-val { font-size: 24px; font-weight: bold; color: #4dabf7; }
+    .metric-lbl { font-size: 12px; color: #aaa; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <h1>NexusGuard</h1>
+    <span class="tagline">Intelligent Vision Platform</span>
+    <span id="backend" class="badge" title="Reasoning backend">Status: Disconnected</span>
+  </header>
+
+  <main class="grid" style="grid-template-columns: 1fr 2fr;">
+    <section class="card">
+      <h2>Live Telemetry</h2>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-val" id="met-fps">0</div>
+          <div class="metric-lbl">FPS</div>
+        </div>
+        <div class="metric">
+          <div class="metric-val" id="met-incidents">0</div>
+          <div class="metric-lbl">Incidents</div>
+        </div>
+      </div>
+      
+      <h2>Analyze Frame</h2>
+      <p class="hint">Submit validated tracking boxes to the pipeline.</p>
+      
+      <label for="payload">Request payload (JSON)</label>
+      <textarea id="payload" rows="10" spellcheck="false">
+{
+  "frame_index": 1,
+  "detections": [
+    {"label": "person", "confidence": 0.8, "bbox": [10, 10, 50, 50]}
+  ]
+}
+      </textarea>
+
+      <div class="actions">
+        <button id="analyze" type="button">Analyze Frame</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Incident Timeline</h2>
+      <div class="timeline" id="timeline">
+        <div class="event" style="color: #666">Waiting for events...</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <span>NexusGuard Dashboard — Event-Driven Architecture</span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

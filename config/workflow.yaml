@@ -1,0 +1,45 @@
+# NexusGuard pipeline DAG (S0 -> S3 vision front-half).
+#
+# Nodes reference nodes registered in `vision.nodes` by their `name`.
+# Edges connect a source node's output port to a target node's input port
+# using the form `<node>.<port>`. The graph executor (runtime.graph) validates
+# this spec, topologically sorts it, and runs each node in order.
+
+name: default
+version: 1
+
+nodes:
+  - id: cam
+    node: capture        # S0 - Capture
+    config:
+      source: "stub://camera"
+      width: 640
+      height: 480
+
+  - id: pre
+    node: clean          # S1 - Clean / normalize
+    config:
+      size: 640
+      color_space: RGB
+
+  - id: det
+    node: detect         # S2 - Detect objects
+    config:
+      min_confidence: 0.25
+
+  - id: val
+    node: validate       # S3 - Validate detections
+    config:
+      min_confidence: 0.25
+
+edges:
+  - src: cam.frame
+    dst: pre.frame
+  - src: pre.frame
+    dst: det.frame
+  - src: det.detections
+    dst: val.detections
+
+# The graph terminates at `val.detections` (VerifiedObjects), which the
+# L5 Adjudicator consumes to produce a risk-scored Incident.
+output: val.detections

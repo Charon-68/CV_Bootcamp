@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / web
+web/node_modules/
+web/dist/
+npm-debug.log*
+
+# Models & data (user-supplied)
+vision/models/*.pt
+data/
+*.faiss
+
+# Logs & db
+*.log
+*.sqlite3
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
